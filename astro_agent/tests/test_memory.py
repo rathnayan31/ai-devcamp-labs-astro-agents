@@ -10,7 +10,7 @@ from pixel_astro_agent.memory import (
     remember_response_preference,
     save_explicit_preference,
 )
-from pixel_astro_agent.memory_config import memory_bank_config
+from pixel_astro_agent.memory_config import MEMORY_TTL, memory_bank_config
 from vertexai._genai.types import ManagedTopicEnum
 
 
@@ -21,6 +21,11 @@ def test_memory_bank_only_enables_user_preferences():
         topics[0].managed_memory_topic.managed_topic_enum
         is ManagedTopicEnum.USER_PREFERENCES
     )
+
+
+def test_memories_expire_after_90_days():
+    assert MEMORY_TTL == "7776000s"
+    assert memory_bank_config.ttl_config.default_ttl == MEMORY_TTL
 
 
 def test_preference_tool_stages_only_supported_values():

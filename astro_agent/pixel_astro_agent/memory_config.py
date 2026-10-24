@@ -13,6 +13,12 @@ from vertexai._genai.types import (
 from vertexai._genai.types import (
     ReasoningEngineContextSpecMemoryBankConfig as MemoryBankConfig,
 )
+from vertexai._genai.types import (
+    ReasoningEngineContextSpecMemoryBankConfigTtlConfig as TtlConfig,
+)
+
+# Lab 2: preferences expire after 90 days unless the user restates them.
+MEMORY_TTL = f"{90 * 24 * 60 * 60}s"
 
 memory_bank_config = MemoryBankConfig(
     customization_configs=[
@@ -26,4 +32,5 @@ memory_bank_config = MemoryBankConfig(
             ],
         ),
     ],
+    ttl_config=TtlConfig(default_ttl=MEMORY_TTL),
 )

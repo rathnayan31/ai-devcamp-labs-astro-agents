@@ -1,19 +1,19 @@
 # Pixel Astro Agent (Google ADK)
 
 A multi-agent Vedic astrologer built with the Agent Development Kit. The work
-follows the AI DevCamp labs in three phases: **Build** (this phase), **Scale**
-(Agent Runtime, Sessions, Memory Bank) and **Govern** (Model Armor, Agent
+follows the AI DevCamp labs in three phases: **Build**, **Scale** (this phase:
+Agent Runtime, Sessions, Memory Bank) and **Govern** (Model Armor, Agent
 Gateway, policies).
 
-## Architecture (Phase 1)
+## Architecture
 
 ```
-pixel_astro_root  (orchestrator + safety policy; tools: list_my_kundalis, select_kundali)
+pixel_astro_root  (orchestrator + safety policy; tools: list_my_kundalis, select_kundali, load_memory, remember_response_preference)
  ├─ [AgentTool] dasha_timing_agent          skill dasha-timing          → get_dasha_periods, get_transits, get_chart_houses   (output_key: dasha_findings)
  ├─ [AgentTool] remedy_agent                skill remedy-kb-search      → search_kb, get_yogas                                (output_key: remedy_findings, reads dasha_findings)
  ├─ [sub-agent] chart_interpretation_agent  skill chart-interpretation  → get_chart_houses, get_yogas
  └─ [sub-agent] compatibility_agent         skill kundali-compatibility → match_kundali, list_my_kundalis
-                  │  MCP (Streamable HTTP, user's JWT forwarded)
+                  │  MCP (Streamable HTTP, server-minted short-lived MCP token)
                   ▼
 Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js, read-only)
    └─ wraps KundaliEnhanced data, calculateKundaliMatch, knowledge_base_chunks.json
@@ -30,7 +30,7 @@ Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js, read-only)
   only hand back to the root.
 - **Tool registry:** the Node server exposes seven read-only MCP tools. Each
   agent's `McpToolset` uses `tool_filter` to keep only the tools it needs.
-  Every kundali lookup is ownership-checked against the JWT user.
+  Every kundali lookup is ownership-checked against the user bound into the MCP token.
 - **Skills:** `skills/*/SKILL.md` folders, loaded on demand through
   `SkillToolset`. `run_skill_script` is filtered out.
 - **Safety rail:** two layers. `SAFETY_POLICY` is appended to every
@@ -113,6 +113,36 @@ Agent Runtime A2A inference is verified with Gemini 3.8 Flash at the global
 Vertex endpoint; `us-central1` returns 404 for that model, so use
 `GOOGLE_CLOUD_LOCATION=global`. Gemini 2.5 publisher models still return 404 in
 `ai-devcamp-lab`, and a Cloud Support case could not be opened because the
-project is not eligible for that support channel. The browser-to-server-to-agent
-path is not verified end to end because the Runtime has no
-`PIXEL_ASTRO_MCP_URL`. Do not modify the server checkout as part of this lab.
+project is not eligible for that support channel. Do not modify the server
+checkout as part of this lab.
+
+### Lab 2 assignment verification
+
+`verify_scale.py` calls the deployed engine the way the server's
+`services/agentRuntimeClient.js` does (ADK session routes, `/run`, MCP token in
+`state_delta`) and checks the assignment end to end:
+
+| Check | What it proves |
+|---|---|
+| `remember_response_preference` called in session A | explicit preference save |
+| USER_PREFERENCES memory stored for the user, no token in it | Memory Bank, preference-only |
+| `load_memory` called in a new session B | cross-session recall |
+| `list_my_kundalis` / `get_chart_houses` succeed | Agent Runtime → MCP with the scoped token |
+| session B read back by a separate request | managed Sessions |
+
+The Runtime must reach the server's `/api/v1/agent-mcp`. For the lab, the
+local server (unchanged) is exposed with a temporary tunnel and the engine is
+redeployed with that URL:
+
+```bash
+cloudflared tunnel --url http://localhost:3000          # prints https://<name>.trycloudflare.com
+agents-cli deploy --project ai-devcamp-lab --region us-central1 \
+  --service-name pixel-astro-agent --agent-identity --update-only --no-confirm-project \
+  --update-env-vars "GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_LOCATION=global,ROOT_MODEL=gemini-3.8-flash,SPECIALIST_MODEL=gemini-3.8-flash,PROJECT_ID=ai-devcamp-lab,PIXEL_ASTRO_MCP_URL=https://<name>.trycloudflare.com/api/v1/agent-mcp"
+# Mint a short-lived MCP token with the server's own util (no server change):
+TOKEN=$(cd <pixel_astro_server> && node -e "require('dotenv').config(); process.stdout.write(require('./utils/agentMcpToken').mintAgentMcpToken('<user id>'))")
+PIXEL_ASTRO_TEST_AGENT_TOKEN=$TOKEN uv run python verify_scale.py --user-id <user id>
+```
+
+Stop the tunnel afterwards; the engine's MCP URL then stops resolving until it
+is redeployed with a reachable server URL.
