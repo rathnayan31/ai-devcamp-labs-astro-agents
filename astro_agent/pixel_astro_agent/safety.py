@@ -24,7 +24,16 @@ logger = logging.getLogger(__name__)
 
 # Function tools on the root, plus specialists the root calls through AgentTool
 # (an AgentTool's name is its agent's name).
-AGENT_TOOLS = frozenset({"select_kundali", "transfer_to_agent", "dasha_timing_agent", "remedy_agent"})
+AGENT_TOOLS = frozenset(
+    {
+        "select_kundali",
+        "transfer_to_agent",
+        "dasha_timing_agent",
+        "remedy_agent",
+        "load_memory",
+        "remember_response_preference",
+    }
+)
 ALLOWED_TOOLS = MCP_READ_ONLY_TOOLS | SKILL_TOOLS | AGENT_TOOLS
 
 SAFETY_POLICY = """
@@ -49,7 +58,9 @@ def enforce_tool_allowlist(
     if tool.name in ALLOWED_TOOLS:
         return None
     logger.warning(
-        "Blocked non-allowlisted tool %r for agent %r", tool.name, tool_context.agent_name
+        "Blocked non-allowlisted tool %r for agent %r",
+        tool.name,
+        tool_context.agent_name,
     )
     return {
         "error": f"Tool '{tool.name}' is not permitted. This assistant only has "

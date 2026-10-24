@@ -23,9 +23,11 @@ Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js, read-only)
   keeps control, can chain dasha → remedy in one turn, and merges the answers.
   Their results go to session state through `output_key`, and `remedy_agent`
   reads `dasha_findings`. An AgentTool call sees only its `request` text plus a
-  copy of session state (JWT, active kundali), not the chat history. Chart
-  interpretation and compatibility are LLM-driven transfers that can only hand
-  back to the root.
+  copy of session state (including the active kundali and the server-issued
+  short-lived MCP token), not the chat history. The server refreshes this
+  token through `state_delta` each turn; the raw app JWT never reaches ADK.
+  Chart interpretation and compatibility are LLM-driven transfers that can
+  only hand back to the root.
 - **Tool registry:** the Node server exposes seven read-only MCP tools. Each
   agent's `McpToolset` uses `tool_filter` to keep only the tools it needs.
   Every kundali lookup is ownership-checked against the JWT user.
@@ -45,16 +47,20 @@ Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js, read-only)
 2. Configure the agent:
    ```bash
    cd astro_agent
-   cp pixel_astro_agent/.env.example pixel_astro_agent/.env   # set project + PIXEL_ASTRO_USER_TOKEN
+   cp pixel_astro_agent/.env.example pixel_astro_agent/.env   # set project; server proxy supplies MCP auth
    gcloud auth application-default login
    uv sync
    ```
-3. Launch the dev UI and open http://localhost:8000:
+3. Launch the ADK dev UI and Scale-aware FastAPI server:
    ```bash
-   uv run adk web --port 8000 .
+   uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
    ```
    Pick `pixel_astro_agent`. Use the Trace tab to watch routing, `load_skill`
    calls and MCP tool calls. Use port 8000 because the API already uses 3000.
+   The integrated app flow is the existing server's
+   `POST /api/v1/astro-agent/chat/stream`; direct local ADK tool calls need a
+   short-lived `PIXEL_ASTRO_AGENT_MCP_TOKEN` in the local environment, never a
+   user's app JWT.
 
 Sample prompts:
 - "When is a good time for my marriage?" → dasha_timing_agent
@@ -66,24 +72,47 @@ Sample prompts:
 ## Tests
 
 ```bash
-uv run pytest                       # offline: safety rail + wiring
+uv run pytest \
+  tests/unit tests/test_safety.py tests/test_memory.py \
+  tests/test_mcp_auth.py tests/test_runtime_services.py
 # End-to-end Runner → MCP over HTTP (scripted model, no Gemini calls):
 PIXEL_ASTRO_MCP_URL=http://localhost:3000/api/v1/agent-mcp \
-PIXEL_ASTRO_TEST_TOKEN=<jwt> PIXEL_ASTRO_TEST_KUNDALI_ID=<id> uv run pytest tests/test_mcp_integration.py
+PIXEL_ASTRO_TEST_AGENT_TOKEN=<short-lived-mcp-token> PIXEL_ASTRO_TEST_KUNDALI_ID=<id> uv run pytest tests/test_mcp_integration.py
 ```
 
 From the repo root, the Node MCP server tests are `npx jest mcp/`.
 
 ## Next phases
 
-- **Scale (Lab 2):**
-  - Deploy with `agents-cli deploy` to Agent Runtime with `--agent-identity`.
-  - Add `VertexAiSessionService` and Memory Bank (`load_memory`).
-  - The Node API (Cloud Run) calls the engine, passing the user's JWT into
-    session state (`user:pixel_astro_token`).
+- **Scale (Lab 2):** deployed to Agent Runtime in `us-central1` with Agent
+  Identity, managed Sessions, and Memory Bank restricted to explicitly saved
+  response-style preferences. The lab consumes the existing server's
+  short-lived, read-only MCP token from ADK `state_delta`; the server alone
+  handles the app JWT and remains the browser-facing proxy. No Pixel Astro
+  server files are changed by this lab.
 - **Govern (Lab 3):**
   - Model Armor templates on Gemini calls.
   - Cloud DLP redaction at the boundary.
   - Agent Gateway with an authz extension.
   - A governance policy such as "never give medical guarantees".
-  - Replace the forwarded JWT with Agent Identity and Auth Manager.
+  - Evaluate Auth Manager for user authorization without weakening the existing
+    per-user MCP ownership checks.
+
+### Intended server integration contract
+
+The browser should use the authenticated server route
+`POST /api/v1/astro-agent/chat/stream`, not Agent Runtime directly. The server
+authenticates the app JWT, creates or resumes the managed session, mints an
+audience-bound short-lived read-only Agent MCP token, and places it in ADK
+`state_delta` under `user:pixel_astro_token` for each turn. The lab agent
+forwards that token only to `/api/v1/agent-mcp`; the raw app JWT and Google
+credentials never reach the agent or browser. The server should stream its
+existing SSE response format back to the app.
+
+Agent Runtime A2A inference is verified with Gemini 3.8 Flash at the global
+Vertex endpoint; `us-central1` returns 404 for that model, so use
+`GOOGLE_CLOUD_LOCATION=global`. Gemini 2.5 publisher models still return 404 in
+`ai-devcamp-lab`, and a Cloud Support case could not be opened because the
+project is not eligible for that support channel. The browser-to-server-to-agent
+path is not verified end to end because the Runtime has no
+`PIXEL_ASTRO_MCP_URL`. Do not modify the server checkout as part of this lab.

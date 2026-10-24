@@ -3,7 +3,8 @@
 Pixel Astro's multi-agent Vedic astrology assistant, built with Google's
 Agent Development Kit (ADK) by following the
 [AI DevCamp labs](https://sonikajanagill.com/ai-devcamp-labs/lab-1-build.html)
-(Build → Scale → Govern → Optimise). This repo is the **Build** phase.
+(Build → Scale → Govern → Optimise). The existing agent completed **Build**;
+this repository is being extended for **Scale**.
 
 ```
 User
@@ -14,7 +15,7 @@ pixel_astro_root  (ADK orchestrator: collects inputs, routes, merges, refuses wa
   ├─ [AgentTool] remedy_agent                → state: remedy_findings (reads dasha_findings)
   ├─ [sub-agent] chart_interpretation_agent
   └─ [sub-agent] compatibility_agent
-                  │  MCP (Streamable HTTP, user's JWT forwarded, read-only tools)
+                  │  MCP (Streamable HTTP, short-lived server-issued token, read-only tools)
                   ▼
 Pixel Astro Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js)
 ```
@@ -30,15 +31,18 @@ Pixel Astro Node API  POST /api/v1/agent-mcp   (mcp/astroMcpServer.js)
 
 ```bash
 cd astro_agent
-cp pixel_astro_agent/.env.example pixel_astro_agent/.env   # set project + PIXEL_ASTRO_USER_TOKEN
+cp pixel_astro_agent/.env.example pixel_astro_agent/.env   # set project; app-server supplies MCP auth
 uv sync
-uv run pytest                    # offline: safety rail + wiring
-uv run adk web --port 8000 .     # needs the Node API running with AGENT_MCP_ENABLED=true
+uv run pytest \
+  tests/unit tests/test_safety.py tests/test_memory.py \
+  tests/test_mcp_auth.py tests/test_runtime_services.py
+uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
 ```
 
 ## Roadmap
 
-- **Scale (Lab 2):** Agent Runtime deployment, Sessions + Memory Bank.
-- **Govern (Lab 3):** Agent Gateway, Model Armor, Agent Identity, Auth Manager,
+- **Scale (Lab 2):** Agent Runtime, Agent Identity, managed Sessions and
+  preference-only Memory Bank.
+- **Govern (Lab 3):** Agent Gateway, Model Armor, Auth Manager, and the
   read-only / no-wallet policy enforced at the gateway.
 - **Optimise (Lab 4):** evals with `agents-cli eval`.

@@ -1,4 +1,4 @@
-"""Pixel Astro multi-agent astrologer (Phase 1: Build).
+"""Pixel Astro multi-agent astrologer (Build and Scale).
 
     root_agent (orchestrator + safety policy)
       ├── [AgentTool] dasha_timing_agent    skill: dasha-timing           tools: get_dasha_periods, get_transits, get_chart_houses
@@ -12,7 +12,9 @@ what can I do about it?"). Their answers land in session state through
 ``output_key`` (``dasha_findings``, ``remedy_findings``), and remedy_agent reads
 ``dasha_findings`` to fit remedies to the running period. An AgentTool call
 gets only its ``request`` text, not the chat history, but it does get a copy of
-session state (the user's JWT and the active kundali), so MCP auth still works.
+session state (including the active kundali and the app server's short-lived,
+MCP-only token). The server refreshes that token in ``state_delta`` each turn;
+the user's app JWT is never sent to this agent.
 
 Chart interpretation and compatibility stay LLM-driven transfers: they're
 conversational, and the user talks to them directly until they hand back.
@@ -24,14 +26,18 @@ from __future__ import annotations
 import os
 
 from google.adk.agents import Agent
+from google.adk.apps import App
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.tools.load_memory_tool import LoadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 
+from .memory import remember_response_preference, save_explicit_preference
+from .model_config import configured_model
 from .safety import SAFETY_POLICY, enforce_tool_allowlist
 from .toolsets import astro_mcp_tools, skills
 
-ROOT_MODEL = os.environ.get("ROOT_MODEL", "gemini-2.5-flash")
-SPECIALIST_MODEL = os.environ.get("SPECIALIST_MODEL", "gemini-2.5-flash")
+ROOT_MODEL = os.environ.get("ROOT_MODEL", "gemini-3.8-flash")
+SPECIALIST_MODEL = os.environ.get("SPECIALIST_MODEL", "gemini-3.8-flash")
 
 ACTIVE_KUNDALI_KEY = "active_kundali_id"
 DASHA_FINDINGS_KEY = "dasha_findings"
@@ -63,7 +69,9 @@ specialty, say so in one sentence.
 """.strip()
 
 
-def select_kundali(kundali_id: str, display_name: str, tool_context: ToolContext) -> dict:
+def select_kundali(
+    kundali_id: str, display_name: str, tool_context: ToolContext
+) -> dict:
     """Remember which of the user's kundalis the conversation is about.
 
     Args:
@@ -103,7 +111,7 @@ def _specialist(
     )
     return Agent(
         name=name,
-        model=SPECIALIST_MODEL,
+        model=configured_model(SPECIALIST_MODEL),
         description=description,
         instruction=instruction,
         tools=[astro_mcp_tools(*tools), skills(skill)],
@@ -168,13 +176,20 @@ compatibility_agent = _specialist(
 
 root_agent = Agent(
     name="pixel_astro_root",
-    model=ROOT_MODEL,
+    model=configured_model(ROOT_MODEL),
     description="Pixel Astro's AI astrologer: routes each question to the right Vedic astrology specialist.",
     instruction=f"""
 You are the front desk of Pixel Astro's AI astrology team. You never do chart
 analysis yourself, and you never state an astrological fact (planet, house,
 dasha, year, age, score, dosha, remedy) that a specialist didn't return.
 Your jobs:
+
+Before routing a request, call `load_memory` and apply recalled information
+only to response style. Never use memory as chart data or authorization.
+Only call `remember_response_preference` when the user explicitly asks you to
+remember a response-style preference, and choose one supported style. Do not
+save chart facts, birth details, kundali IDs, credentials, or other free-form
+personal information.
 
 1. Collect the required inputs before delegating. Every chart is a saved
    kundali (birth date, time and place) in the user's Pixel Astro account.
@@ -222,9 +237,14 @@ Your jobs:
     tools=[
         astro_mcp_tools("list_my_kundalis"),
         select_kundali,
+        LoadMemoryTool(),
+        remember_response_preference,
         AgentTool(agent=dasha_timing_agent),
         AgentTool(agent=remedy_agent),
     ],
     sub_agents=[chart_interpretation_agent, compatibility_agent],
     before_tool_callback=enforce_tool_allowlist,
+    after_agent_callback=save_explicit_preference,
 )
+
+app = App(root_agent=root_agent, name="pixel_astro_agent")

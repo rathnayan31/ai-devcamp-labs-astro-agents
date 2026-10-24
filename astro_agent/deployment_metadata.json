@@ -1,0 +1,8 @@
+{
+  "remote_agent_runtime_id": "projects/457837625068/locations/us-central1/reasoningEngines/7109497435658911744",
+  "deployment_target": "agent_runtime",
+  "is_a2a": true,
+  "language": "python",
+  "agent_directory": "pixel_astro_agent",
+  "deployment_timestamp": "2026-10-24T20:44:56.771450+00:00"
+}

@@ -1,0 +1,18 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "greeting",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Hello, what can you help me with?"}]
+      }
+    },
+    {
+      "eval_case_id": "remember_response_preference",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Please remember that I prefer concise answers."}]
+      }
+    }
+  ]
+}

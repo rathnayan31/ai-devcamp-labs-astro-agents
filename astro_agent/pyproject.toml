@@ -1,10 +1,14 @@
 [project]
 name = "pixel-astro-agent"
 version = "0.1.0"
-description = "Pixel Astro multi-agent astrologer (Google ADK) — Phase 1: Build"
+description = "Pixel Astro multi-agent astrologer (Google ADK) — Build and Scale"
 requires-python = ">=3.11"
 dependencies = [
-    "google-adk[mcp]==2.10.0",
+    "a2a-sdk[http-server]>=1.0,<2",
+    "aiohttp>=3.13.4",
+    "gcsfs>=2024.11.0",
+    "google-adk[bigquery-analytics,gcp,mcp,otel-gcp]==2.10.0",
+    "opentelemetry-resourcedetector-gcp<=1.12.0a0",
     "python-dotenv>=1.0",
 ]
 

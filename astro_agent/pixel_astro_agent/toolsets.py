@@ -18,25 +18,26 @@ from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnectionParams
 from google.adk.tools.skill_toolset import SkillToolset
 
+from .mcp_auth import get_agent_mcp_token, is_agent_runtime
+
 SKILLS_DIR = pathlib.Path(__file__).resolve().parents[1] / "skills"
 
-MCP_URL = os.environ.get("PIXEL_ASTRO_MCP_URL", "http://localhost:3000/api/v1/agent-mcp")
-
-# Session-state key for the end user's Pixel Astro JWT. The `user:` prefix
-# scopes it to the user across sessions. Phase 2 sets it from the app's
-# authenticated request, and Phase 3 replaces it with Agent Identity/Auth Manager.
-USER_TOKEN_STATE_KEY = "user:pixel_astro_token"
+MCP_URL = os.environ.get(
+    "PIXEL_ASTRO_MCP_URL", "http://localhost:3000/api/v1/agent-mcp"
+)
 
 # Read-only tools the Node MCP server exposes (mcp/astroMcpServer.js).
-MCP_READ_ONLY_TOOLS = frozenset({
-    "list_my_kundalis",
-    "get_chart_houses",
-    "get_dasha_periods",
-    "get_transits",
-    "get_yogas",
-    "match_kundali",
-    "search_kb",
-})
+MCP_READ_ONLY_TOOLS = frozenset(
+    {
+        "list_my_kundalis",
+        "get_chart_houses",
+        "get_dasha_periods",
+        "get_transits",
+        "get_yogas",
+        "match_kundali",
+        "search_kb",
+    }
+)
 
 # Skill tools we allow. `run_skill_script` is deliberately excluded:
 # skills here are instructions only, never code execution.
@@ -44,8 +45,10 @@ SKILL_TOOLS = frozenset({"list_skills", "load_skill", "load_skill_resource"})
 
 
 def _auth_headers(ctx: ReadonlyContext) -> dict[str, str]:
-    """Forward the end user's JWT so the MCP server scopes data to them."""
-    token = ctx.state.get(USER_TOKEN_STATE_KEY) or os.environ.get("PIXEL_ASTRO_USER_TOKEN", "")
+    """Forward the app server's short-lived, MCP-scoped token."""
+    token = get_agent_mcp_token(ctx.state)
+    if not token and not is_agent_runtime():
+        token = os.environ.get("PIXEL_ASTRO_AGENT_MCP_TOKEN", "")
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
