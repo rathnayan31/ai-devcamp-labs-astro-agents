@@ -31,6 +31,7 @@ from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools.load_memory_tool import LoadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 
+from .guardrails import content_config, guard_reply
 from .memory import remember_response_preference, save_explicit_preference
 from .model_config import configured_model
 from .safety import SAFETY_POLICY, enforce_tool_allowlist
@@ -116,6 +117,9 @@ def _specialist(
         instruction=instruction,
         tools=[astro_mcp_tools(*tools), skills(skill)],
         output_key=output_key,
+        # Replies screened by Model Armor; input is the root's own request.
+        generate_content_config=content_config(screen_input=False),
+        after_model_callback=guard_reply,
         before_tool_callback=enforce_tool_allowlist,
         # Tool specialists have no parent to transfer to; transfer specialists
         # may only go back to the root.
@@ -245,6 +249,9 @@ personal information.
         AgentTool(agent=remedy_agent),
     ],
     sub_agents=[chart_interpretation_agent, compatibility_agent],
+    # The user's message and every reply screened by Model Armor.
+    generate_content_config=content_config(screen_input=True),
+    after_model_callback=guard_reply,
     before_tool_callback=enforce_tool_allowlist,
     after_agent_callback=save_explicit_preference,
 )

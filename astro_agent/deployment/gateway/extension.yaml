@@ -1,0 +1,9 @@
+# Authorization extension: the gateway sends each request/response to Model
+# Armor with these templates. failOpen: false, so an unreachable or
+# misconfigured Model Armor blocks traffic instead of silently passing it.
+name: agw-pixel-astro-authz-modar
+service: modelarmor.us-central1.rep.googleapis.com
+metadata:
+  model_armor_settings: '[{"request_template_id": "projects/ai-devcamp-lab/locations/us-central1/templates/pixel-astro-guardrails", "response_template_id": "projects/ai-devcamp-lab/locations/us-central1/templates/pixel-astro-guardrails-output"}]'
+failOpen: false
+timeout: 5s

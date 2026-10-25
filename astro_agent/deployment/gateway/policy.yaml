@@ -1,0 +1,11 @@
+# Authorization policy: attaches the Model Armor extension to the gateway.
+name: agw-pixel-astro-authz-policy-modar
+target:
+  resources:
+    - projects/ai-devcamp-lab/locations/us-central1/agentGateways/agw-pixel-astro
+policyProfile: CONTENT_AUTHZ
+action: CUSTOM
+customProvider:
+  authzExtension:
+    resources:
+      - projects/ai-devcamp-lab/locations/us-central1/authzExtensions/agw-pixel-astro-authz-modar

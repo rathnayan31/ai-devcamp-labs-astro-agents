@@ -1,5 +1,6 @@
 from google.adk.models import Gemini
 
+from pixel_astro_agent.guardrails import GuardedGemini
 from pixel_astro_agent.model_config import configured_model
 
 
@@ -22,6 +23,17 @@ def test_vertex_model_defaults_to_global_when_location_is_not_set(monkeypatch):
 
     assert isinstance(model, Gemini)
     assert model.client_kwargs == {"location": "global"}
+
+
+def test_guarded_model_carries_model_armor_retries(monkeypatch):
+    monkeypatch.setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
+    monkeypatch.setenv("MODEL_ARMOR_TEMPLATE_ID", "pixel-astro-guardrails")
+    monkeypatch.setenv("PROJECT_ID", "ai-devcamp-lab")
+
+    model = configured_model("gemini-3.8-flash")
+
+    assert isinstance(model, GuardedGemini)
+    assert model.retry_options.attempts == 8
 
 
 def test_non_vertex_model_keeps_existing_string_configuration(monkeypatch):

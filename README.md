@@ -3,8 +3,8 @@
 Pixel Astro's multi-agent Vedic astrology assistant, built with Google's
 Agent Development Kit (ADK) by following the
 [AI DevCamp labs](https://sonikajanagill.com/ai-devcamp-labs/lab-1-build.html)
-(Build → Scale → Govern → Optimise). The existing agent completed **Build**;
-this repository is being extended for **Scale**.
+(Build → Scale → Govern → Optimise). The agent has completed **Build**, **Scale**
+and **Govern**.
 
 ```
 User
@@ -35,7 +35,8 @@ cp pixel_astro_agent/.env.example pixel_astro_agent/.env   # set project; app-se
 uv sync
 uv run pytest \
   tests/unit tests/test_safety.py tests/test_memory.py \
-  tests/test_mcp_auth.py tests/test_runtime_services.py
+  tests/test_mcp_auth.py tests/test_runtime_services.py \
+  tests/test_model_config.py tests/test_guardrails.py
 uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
 ```
 
@@ -43,6 +44,8 @@ uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
 
 - **Scale (Lab 2):** Agent Runtime, Agent Identity, managed Sessions and
   preference-only Memory Bank.
-- **Govern (Lab 3):** Agent Gateway, Model Armor, Auth Manager, and the
-  read-only / no-wallet policy enforced at the gateway.
+- **Govern (Lab 3):** Model Armor on every Gemini call, Cloud DLP at the
+  boundary, Agent Registry, the `no-wallet-or-booking` governance policy bound
+  to the agent identity, and Agent Gateway ingress. Evidence and red-team
+  scoresheet: `astro_agent/README.md`, `astro_agent/docs/`.
 - **Optimise (Lab 4):** evals with `agents-cli eval`.

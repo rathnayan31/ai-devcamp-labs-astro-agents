@@ -27,6 +27,7 @@ from pixel_astro_agent.app_utils.a2a import attach_a2a_routes
 from pixel_astro_agent.app_utils.reasoning_engine_adapter import (
     attach_reasoning_engine_routes,
 )
+from pixel_astro_agent.screening import ScreenUserMessages
 
 load_dotenv()
 allow_origins = (
@@ -78,6 +79,8 @@ app.description = "API for interacting with the Agent astro-agent"
 # Proxy routes so the Vertex AI Console Playground (reasoning_engine SDK) can
 # talk to this agent alongside the native adk_api routes.
 attach_reasoning_engine_routes(app)
+# Lab 3: DLP redaction and Model Armor screening of the user's message before ADK sees it.
+app.add_middleware(ScreenUserMessages)
 
 
 # Main execution
