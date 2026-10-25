@@ -47,6 +47,15 @@ uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
   and compatibility sub-agents. Four Agent Skills (`skills/*/SKILL.md`),
   seven read-only MCP tools with per-agent `tool_filter`, and a safety rail
   (`SAFETY_POLICY` + tool allowlist callback; no wallet/booking access).
+  Lab 1 assignment, adapted to Pixel Astro on purpose:
+
+  | Assignment item | Here |
+  |---|---|
+  | Agent + hand-written function tool | `select_kundali` (and `remember_response_preference`, Lab 2) |
+  | Own Agent Skill via `SkillToolset` | four skills: chart-interpretation, dasha-timing, kundali-compatibility, remedy-kb-search |
+  | Built-in tool (`google_search`) in a sub-agent behind `AgentTool` | **replaced**: `remedy_agent` (an `AgentTool` specialist) grounds on the curated Vedic knowledge base through the read-only MCP tool `search_kb`, not the open web, so answers cite vetted sources only |
+  | MCP side effect gated by `require_confirmation=True` | **not applicable**: the agent is read-only by design (no payments, bookings or writes; the Lab 3 `no-wallet-or-booking` policy). With no side-effect tool there is nothing to confirm; the read-only allowlist callback is the gate |
+
 - ✅ **Scale (Lab 2):** deployed to Agent Runtime (`us-central1`) with Agent
   Identity, managed Sessions and preference-only Memory Bank (90-day TTL).
   Verified end to end by `astro_agent/verify_scale.py` (7/7).
