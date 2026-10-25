@@ -136,5 +136,19 @@ present (`INSPECT_AND_BLOCK`); Secret Manager API not enabled, so
 
 ## Step 7: budget
 
-Command prepared for billing account `013178-7F221D-5F6C91`; created only
-after the account owner confirms (see README).
+Created 2026-10-25 after the account owner confirmed: budget
+`bfe94429-23b2-4ed0-91b5-1a930dd850ce`, **100 SEK/month (~$10)** on billing
+account `013178-7F221D-5F6C91`, scoped to `ai-devcamp-lab`, alerts at 50%,
+90% and 100% of actual spend.
+
+Deliberate error met on the way: `--budget-amount=50USD` failed with a bare
+`INVALID_ARGUMENT` (no field named). The cause is the billing account's
+currency, **SEK**: a budget's amount must be in the account's currency.
+`gcloud billing accounts describe <id> --format='value(currencyCode)'` first.
+
+```
+gcloud billing budgets create --billing-account=013178-7F221D-5F6C91 \
+  --display-name="pixel-astro ~$10 (100 SEK)" --budget-amount=100SEK \
+  --filter-projects=projects/ai-devcamp-lab \
+  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
+```
