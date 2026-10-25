@@ -1,9 +1,8 @@
 # Pixel Astro Agent (Google ADK)
 
-A multi-agent Vedic astrologer built with the Agent Development Kit. The work
-follows the AI DevCamp labs in three phases: **Build**, **Scale** (this phase:
-Agent Runtime, Sessions, Memory Bank) and **Govern** (Model Armor, Agent
-Gateway, policies).
+A multi-agent Vedic astrologer built with the Agent Development Kit, following
+the AI DevCamp labs: **Build** (Lab 1), **Scale** (Lab 2) and **Govern**
+(Lab 3) are complete; **Optimise** (Lab 4) is next.
 
 ## Architecture
 
@@ -85,16 +84,22 @@ From the repo root, the Node MCP server tests are `npx jest mcp/`.
 
 ## Phases
 
-- **Scale (Lab 2):** deployed to Agent Runtime in `us-central1` with Agent
+- ✅ **Build (Lab 1):** multi-agent ADK astrologer. The root orchestrator
+  calls `dasha_timing_agent` and `remedy_agent` as `AgentTool`s (results
+  shared through `output_key` state) and transfers to the chart-interpretation
+  and compatibility sub-agents. Four Agent Skills (`skills/`),
+  seven read-only MCP tools with per-agent `tool_filter`, and a safety rail
+  (`SAFETY_POLICY` + tool allowlist callback; no wallet/booking access).
+- ✅ **Scale (Lab 2):** deployed to Agent Runtime in `us-central1` with Agent
   Identity, managed Sessions, and Memory Bank restricted to explicitly saved
   response-style preferences. The lab consumes the existing server's
   short-lived, read-only MCP token from ADK `state_delta`; the server alone
   handles the app JWT and remains the browser-facing proxy. No Pixel Astro
   server files are changed by this lab.
-- **Govern (Lab 3):** Model Armor on every Gemini call, Cloud DLP redaction
+- ✅ **Govern (Lab 3):** Model Armor on every Gemini call, Cloud DLP redaction
   at the boundary, Agent Registry, a governance policy bound to the agent's
   identity, and Agent Gateway ingress. See "Lab 3 governance" below.
-- **Optimise (Lab 4):** next.
+- ⏭️ **Optimise (Lab 4):** next.
 
 ### Intended server integration contract
 
