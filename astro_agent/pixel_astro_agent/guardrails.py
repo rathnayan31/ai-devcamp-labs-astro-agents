@@ -35,6 +35,7 @@ Configure with:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from typing import AsyncGenerator
@@ -186,6 +187,26 @@ def retry_options() -> types.HttpRetryOptions | None:
     )
 
 
+def _log_usage(model: str, usage: types.GenerateContentResponseUsageMetadata) -> None:
+    """Append one model call's token counts to PIXEL_ASTRO_USAGE_LOG (JSON lines).
+
+    For costing eval runs (Lab 4 Step 4, evals/cost.py). Specialists called as
+    AgentTools run in their own sessions, so the eval's own token count misses
+    them; this sees every call. Off unless the variable is set.
+    """
+    path = os.environ.get("PIXEL_ASTRO_USAGE_LOG")
+    if not path:
+        return
+    with open(path, "a") as f:
+        f.write(json.dumps({
+            "model": model,
+            "prompt": usage.prompt_token_count or 0,
+            "cached": usage.cached_content_token_count or 0,
+            "output": usage.candidates_token_count or 0,
+            "thinking": usage.thoughts_token_count or 0,
+        }) + "\n")
+
+
 class GuardedGemini(Gemini):
     """Gemini that doesn't stream while Model Armor is on (see module docstring)."""
 
@@ -195,4 +216,6 @@ class GuardedGemini(Gemini):
         async for response in super().generate_content_async(
             llm_request, stream=stream and not model_armor_enabled()
         ):
+            if response.usage_metadata and not response.partial:
+                _log_usage(self.model, response.usage_metadata)
             yield response

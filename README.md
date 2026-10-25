@@ -3,7 +3,7 @@
 Pixel Astro's multi-agent Vedic astrology assistant, built with Google's
 Agent Development Kit (ADK) by following the
 [AI DevCamp labs](https://sonikajanagill.com/ai-devcamp-labs/lab-1-build.html)
-(Build → Scale → Govern → Optimise). Labs 1–3 are complete; Lab 4 is next.
+(Build → Scale → Govern → Optimise). All four labs are complete.
 
 ```
 User
@@ -35,7 +35,8 @@ uv sync
 uv run pytest \
   tests/unit tests/test_safety.py tests/test_memory.py \
   tests/test_mcp_auth.py tests/test_runtime_services.py \
-  tests/test_model_config.py tests/test_guardrails.py
+  tests/test_model_config.py tests/test_guardrails.py tests/test_analytics.py
+./evals/run.sh          # golden eval set + gate (needs the Node API on :3000)
 uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
 ```
 
@@ -63,4 +64,8 @@ uv run uvicorn pixel_astro_agent.fast_api_app:app --host 127.0.0.1 --port 8000
   boundary, Agent Registry, the `no-wallet-or-booking` governance policy bound
   to the agent identity, and Agent Gateway ingress. Evidence and red-team
   scoresheet: `astro_agent/README.md`, `astro_agent/docs/`.
-- ⏭️ **Optimise (Lab 4):** evals with `agents-cli eval`.
+- ✅ **Optimise (Lab 4):** golden eval set (6 rule-per-case rubrics) behind a
+  fail-closed gate, 4 frozen simulated-user scenarios, model right-sizing
+  (root on Gemini 3.8 Flash, specialists on 3.5 Flash-Lite: ~54% cheaper, no
+  regressions), BigQuery Agent Analytics with no message text, and an
+  eval-gated deploy. Results: `astro_agent/docs/optimise-log.md`.

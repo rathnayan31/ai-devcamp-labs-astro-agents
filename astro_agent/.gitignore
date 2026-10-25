@@ -212,3 +212,6 @@ tools/a2a-inspector/
 *.pem
 *-key.json
 credentials*.json
+
+# Lab 4 eval run logs (may contain chart data)
+evals/.runs/

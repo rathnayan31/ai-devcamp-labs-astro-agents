@@ -31,6 +31,7 @@ from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools.load_memory_tool import LoadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 
+from .analytics import analytics_plugins
 from .guardrails import content_config, guard_reply
 from .memory import remember_response_preference, save_explicit_preference
 from .model_config import configured_model
@@ -256,4 +257,5 @@ personal information.
     after_agent_callback=save_explicit_preference,
 )
 
-app = App(root_agent=root_agent, name="pixel_astro_agent")
+# Plugins attach here, so every runner is built from the App (analytics.py).
+app = App(root_agent=root_agent, name="pixel_astro_agent", plugins=analytics_plugins())

@@ -1,0 +1,77 @@
+# Eval-gated deploy of the Pixel Astro agent to Agent Runtime (Lab 4 Step 6).
+#
+#   gcloud builds submit --config astro_agent/cloudbuild.yaml \
+#     --substitutions _MCP_URL=https://<api-host>/api/v1/agent-mcp .      # from the repo root
+#
+# Two steps; Cloud Build stops at the first failure, so a red eval deploys
+# nothing. The gate is evals/gate.sh (the same one run.sh and deploy.sh use):
+# it reads "Tests failed: N", never adk eval's exit code (0 even when cases
+# fail), and fails closed on a missing line or an unscored judge metric.
+#
+# Not submitted in the lab. Before the first submit, check (read-only) that
+# these exist; create nothing from this file:
+#   - A Pixel Astro Node API reachable from Cloud Build with
+#     AGENT_MCP_ENABLED=true and the eval user's kundali (_EVAL_USER_ID):
+#       curl -s -o /dev/null -w '%{http_code}' -X POST "$_MCP_URL"   # 401, not 404/000
+#   - Secret Manager secret agent-mcp-jwt-secret holding that server's
+#     AGENT_MCP_JWT_SECRET (or JWT_SECRET), for evals/mint_token.py:
+#       gcloud secrets describe agent-mcp-jwt-secret --project ai-devcamp-lab
+#   - Model Armor templates in us-central1 (gcp-setup.sh):
+#       gcloud model-armor templates describe pixel-astro-guardrails --location us-central1
+#   - The build service account can call Gemini and Model Armor, read the
+#     secret and deploy: roles/aiplatform.user, roles/modelarmor.user,
+#     roles/secretmanager.secretAccessor (on the secret), roles/storage.admin
+#     (agents-cli staging), roles/iam.serviceAccountUser.
+#   - The deployed agent's env vars are already set: --update-env-vars merges,
+#     so the deploy step only ships code.
+
+steps:
+  # 1. The gate: golden set against the code in this build. The MCP token is
+  #    minted inside the step and never written to the logs or the workspace.
+  - id: eval-gate
+    name: python:3.12-slim
+    dir: astro_agent
+    entrypoint: bash
+    env:
+      - GOOGLE_CLOUD_PROJECT_EVAL=$PROJECT_ID
+      - PIXEL_ASTRO_MCP_URL=${_MCP_URL}
+      - EVAL_USER_ID=${_EVAL_USER_ID}
+    secretEnv: [AGENT_MCP_JWT_SECRET]
+    args:
+      - -c
+      - |
+        set -uo pipefail
+        [[ -n "${_MCP_URL}" ]] || { echo "GATE: FAIL (set _MCP_URL)"; exit 1; }
+        pip install --quiet uv==0.12.19
+        uv sync --frozen --quiet
+        EVAL_TOOL_TOKEN="$$(uv run python evals/mint_token.py "${_EVAL_USER_ID}")" \
+          ./evals/run.sh evals/golden.evalset.json
+
+  # 2. Deploy only after a green gate.
+  - id: deploy
+    name: python:3.12-slim
+    dir: astro_agent
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        pip install --quiet uv==0.12.19
+        uv tool install --quiet google-agents-cli==1.7.0
+        ~/.local/bin/agents-cli deploy --project "$PROJECT_ID" --region us-central1 \
+          --service-name pixel-astro-agent --agent-identity --update-only --no-confirm-project \
+          --agent-gateway-ingress "projects/$PROJECT_ID/locations/us-central1/agentGateways/agw-pixel-astro"
+
+substitutions:
+  _MCP_URL: ''  # required: https://<api-host>/api/v1/agent-mcp
+  _EVAL_USER_ID: 6ad50ba9489d31a61484e9a1
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/agent-mcp-jwt-secret/versions/latest
+      env: AGENT_MCP_JWT_SECRET
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: MUST_MATCH
+timeout: 1800s
